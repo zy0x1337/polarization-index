@@ -14,7 +14,6 @@ const feedUrls = [
 
 const rageDictionary = ["slams", "destroys", "bombshell", "meltdown", "explosive", "shocking", "horrific", "panic", "fraud", "smear", "rips", "brutal", "warning", "crisis", "collapses", "erupts", "rage", "fury", "slam", "destroy"];
 
-// Füllwörter entfernen
 const stopWords = ["the", "and", "for", "with", "that", "this", "from", "have", "will", "not", "but", "was", "are", "they", "you", "all", "can", "her", "has", "his", "out", "into", "over", "says", "news", "report", "amid", "as", "at", "by", "in", "of", "on", "to", "up", "a", "an", "is", "it", "be", "or"];
 
 function getKeywords(title: string) {
@@ -94,7 +93,8 @@ export async function GET() {
           // Nur hinzufügen, wenn die Quelle noch nicht im Story ist
           if (!story.articles.some((a: any) => a.source === item.source)) {
             story.articles.push(item);
-            story.keywords = [...new Set([...story.keywords, ...item.keywords])].slice(0, 6);
+            // FIX: Array.from anstelle von Spread-Operator für Set
+            story.keywords = Array.from(new Set([...story.keywords, ...item.keywords])).slice(0, 6);
             story.date = item.date; // Update auf neueste Zeit
           }
           matched = true;
@@ -128,4 +128,4 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch RSS feeds" }, { status: 500 });
   }
-      }
+  }
