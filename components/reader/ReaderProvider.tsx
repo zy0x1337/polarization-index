@@ -36,6 +36,10 @@ function reducer(state: ReaderState, action: ReaderAction): ReaderState {
     case "SET_SNAP":
       return { ...state, snap: action.snap };
 
+    case "ARRANGE":
+      if (!state.overlay) return state;
+      return { ...state, mode: action.arrangement === "split" ? "split" : "peek" };
+
     case "PROMOTE":
       if (!state.overlay) return state;
       return { ...state, mode: "single", background: state.overlay, overlay: null };
@@ -66,6 +70,7 @@ interface ReaderContextValue extends ReaderState {
   open: (content: PaneContent) => void;
   peek: (content: PaneContent) => void;
   setSnap: (snap: Snap) => void;
+  arrange: (arrangement: "over" | "split") => void;
   promote: () => void;
   split: (ratio?: number) => void;
   setRatio: (ratio: number) => void;
@@ -82,6 +87,10 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const open = useCallback((content: PaneContent) => dispatch({ type: "OPEN", content }), []);
   const peek = useCallback((content: PaneContent) => dispatch({ type: "PEEK", content }), []);
   const setSnap = useCallback((snap: Snap) => dispatch({ type: "SET_SNAP", snap }), []);
+  const arrange = useCallback(
+    (arrangement: "over" | "split") => dispatch({ type: "ARRANGE", arrangement }),
+    []
+  );
   const promote = useCallback(() => dispatch({ type: "PROMOTE" }), []);
   const split = useCallback((ratio?: number) => dispatch({ type: "SPLIT", ratio }), []);
   const setRatio = useCallback((ratio: number) => dispatch({ type: "SET_RATIO", ratio }), []);
@@ -111,8 +120,8 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   }, [state.mode]);
 
   const value = useMemo<ReaderContextValue>(
-    () => ({ ...state, open, peek, setSnap, promote, split, setRatio, swap, collapse, close }),
-    [state, open, peek, setSnap, promote, split, setRatio, swap, collapse, close]
+    () => ({ ...state, open, peek, setSnap, arrange, promote, split, setRatio, swap, collapse, close }),
+    [state, open, peek, setSnap, arrange, promote, split, setRatio, swap, collapse, close]
   );
 
   return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;

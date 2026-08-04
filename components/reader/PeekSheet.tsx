@@ -7,6 +7,7 @@ import { useIsDesktop } from "./useMediaQuery";
 import { SNAP_FRACTION, paneKey, type Snap } from "./types";
 import PaneRenderer from "./PaneRenderer";
 import PaneControls from "./PaneControls";
+import CoachHint from "./CoachHint";
 
 const FULL = SNAP_FRACTION.full;
 const SNAP_ORDER: Snap[] = ["peek", "half", "full"];
@@ -107,8 +108,11 @@ function MobileSheet() {
         >
           <div className="mx-auto h-1 w-10 rounded-full bg-border" />
         </div>
-        <div className="shrink-0 border-b border-hairline px-4 pb-3">
+        <div className="shrink-0 px-4 pb-2">
           <PaneControls context="peek" />
+        </div>
+        <div className="shrink-0 border-b border-hairline">
+          <CoachHint text="Drag the handle to resize. Pick a layout below to read both sides at once." />
         </div>
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <PaneRenderer key={paneKey(overlay)} content={overlay} />
@@ -206,6 +210,10 @@ function FloatingPanel() {
         <div className="flex-1" onPointerDown={(e) => e.stopPropagation()}>
           <PaneControls context="peek" />
         </div>
+      </div>
+
+      <div className="shrink-0 border-b border-hairline">
+        <CoachHint text="Drag the bar to move, corners to resize. Pick a layout to read both sides at once." />
       </div>
 
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
