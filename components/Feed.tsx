@@ -1,12 +1,26 @@
 "use client";
 
 import { computeStoryStats, relativeTime, type Story } from "@/lib/types";
+import { EDITIONS } from "@/lib/editions";
 import { useReader } from "./reader/ReaderProvider";
+import { useEdition } from "./reader/EditionContext";
 import { Kicker, RageMeter, Spectrum } from "./reader/ui";
 
 const DOT = "·";
+const EDITION_LIST = Object.values(EDITIONS);
 
-export default function Feed({ stories, loading }: { stories: Story[]; loading: boolean }) {
+export default function Feed({
+  stories,
+  loading,
+  editionId,
+  onEdition,
+}: {
+  stories: Story[];
+  loading: boolean;
+  editionId: string;
+  onEdition: (id: string) => void;
+}) {
+  const { axisLabel, buckets } = useEdition();
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -31,28 +45,53 @@ export default function Feed({ stories, loading }: { stories: Story[]; loading: 
       </header>
 
       {/* Hero */}
-      <section className="mx-auto max-w-5xl px-5 pb-10 pt-12 md:px-8 md:pt-20">
+      <section className="mx-auto max-w-5xl px-5 pb-8 pt-12 md:px-8 md:pt-20">
         <h1 className="font-serif text-5xl leading-[0.95] tracking-tight md:text-7xl">
           Every side.
           <br />
           <span className="text-muted">Same event.</span>
         </h1>
         <p className="mt-6 max-w-md font-sans text-[15px] leading-relaxed text-muted md:text-base">
-          No bias, no ranking of truth. We gather how left, center, and right
-          report the same story, and hand you every version at once.
+          No bias, no ranking of truth. We gather how the world&apos;s
+          perspectives report the same story, and hand you every version at once.
         </p>
-        <div className="mt-6 flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-ink" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
-            Live {DOT} refreshed every 30 min
-          </span>
-        </div>
       </section>
 
+      {/* Edition switcher */}
+      <nav className="mx-auto max-w-5xl px-5 md:px-8">
+        <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+          {EDITION_LIST.map((ed) => {
+            const active = ed.id === editionId;
+            return (
+              <button
+                key={ed.id}
+                type="button"
+                disabled={!ed.available}
+                onClick={() => ed.available && onEdition(ed.id)}
+                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors ${
+                  active
+                    ? "border-ink bg-ink text-canvas"
+                    : ed.available
+                      ? "border-border bg-surface text-muted hover:border-ink hover:text-ink"
+                      : "cursor-not-allowed border-hairline bg-transparent text-faint"
+                }`}
+              >
+                {ed.label}
+                {!ed.available && (
+                  <span className="text-[8px] tracking-[0.12em]">soon</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
       {/* Feed */}
-      <section className="mx-auto max-w-5xl px-5 pb-24 md:px-8">
+      <section className="mx-auto max-w-5xl px-5 pb-24 pt-6 md:px-8">
         <div className="mb-5 flex items-center justify-between border-b border-hairline pb-3">
-          <Kicker>Stories covered across the spectrum</Kicker>
+          <Kicker>
+            Compared by {axisLabel} {DOT} {buckets.map((b) => b.label).join(" / ")}
+          </Kicker>
           {!loading && (
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
               {stories.length}
@@ -64,7 +103,7 @@ export default function Feed({ stories, loading }: { stories: Story[]; loading: 
           <SkeletonGrid />
         ) : stories.length === 0 ? (
           <p className="py-16 text-center font-mono text-xs uppercase tracking-[0.16em] text-faint">
-            No cross-spectrum stories right now.
+            No cross-perspective stories right now.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -92,7 +131,8 @@ export default function Feed({ stories, loading }: { stories: Story[]; loading: 
 
 function StoryCard({ story }: { story: Story }) {
   const { open } = useReader();
-  const stats = computeStoryStats(story);
+  const { buckets } = useEdition();
+  const stats = computeStoryStats(story, buckets);
 
   return (
     <button
@@ -104,7 +144,7 @@ function StoryCard({ story }: { story: Story }) {
         <div className="flex items-center gap-2">
           <Spectrum coverage={stats.coverage} size={8} />
           <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
-            {stats.coverage.length}/3 sides {DOT} {stats.sourceCount} outlets
+            {stats.coverage.length}/{buckets.length} sides {DOT} {stats.sourceCount} outlets
           </span>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">

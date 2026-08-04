@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { computeStoryStats } from "@/lib/types";
 import { useReader } from "./ReaderProvider";
+import { useEdition } from "./EditionContext";
 import { paneKey, type PaneContent } from "./types";
 import PaneRenderer from "./PaneRenderer";
 import PeekSheet from "./PeekSheet";
@@ -17,12 +18,13 @@ function titleFor(content: PaneContent): string {
 
 function TopBar() {
   const { background, close, mode } = useReader();
+  const { buckets } = useEdition();
   if (!background) return null;
 
   const coverage =
     background.kind === "story"
-      ? computeStoryStats(background.story).coverage
-      : [background.article.bias];
+      ? computeStoryStats(background.story, buckets).coverage
+      : [background.article.bucket];
 
   return (
     <div

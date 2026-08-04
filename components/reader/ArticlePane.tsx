@@ -2,7 +2,7 @@
 
 import { relativeTime, type NewsEvent, type Story } from "@/lib/types";
 import { useReader } from "./ReaderProvider";
-import { BiasTag, Kicker, RageMeter } from "./ui";
+import { BucketTag, Kicker, RageMeter, flag } from "./ui";
 
 export default function ArticlePane({
   article,
@@ -16,8 +16,8 @@ export default function ArticlePane({
   return (
     <article className="mx-auto w-full max-w-2xl px-5 pb-24 pt-6 md:px-8">
       <header className="border-b border-hairline pb-6">
-        <div className="flex items-center justify-between">
-          <BiasTag bias={article.bias} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BucketTag bucket={article.bucket} stateControlled={article.stateControlled} />
           <Kicker>{relativeTime(article.date)}</Kicker>
         </div>
         <h1 className="mt-4 font-serif text-3xl leading-[1.08] tracking-tight text-ink md:text-4xl">
@@ -25,12 +25,24 @@ export default function ArticlePane({
         </h1>
         <div className="mt-4 flex items-center gap-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-            {article.source}
+            {flag(article.country)} {article.source}
           </span>
           <span className="h-3 w-px bg-border" />
           <RageMeter score={article.rageScore} />
         </div>
       </header>
+
+      {article.stateControlled && (
+        <div className="mt-5 rounded-xl border border-ink/15 bg-ink/[0.03] px-4 py-3">
+          <p className="font-sans text-[12px] leading-relaxed text-muted">
+            <span className="font-mono uppercase tracking-[0.12em] text-ink">
+              State-controlled outlet.
+            </span>{" "}
+            This source is operated by or aligned with a national government.
+            We include it so the state narrative is visible, not endorsed.
+          </p>
+        </div>
+      )}
 
       <section className="py-6">
         {article.description ? (

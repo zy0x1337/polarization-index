@@ -1,34 +1,44 @@
 "use client";
 
-import { BIAS_HEX, BIAS_LABEL, BIAS_ORDER, type Bias } from "@/lib/types";
+import type { BucketId } from "@/lib/editions";
+import { useEdition, useBucket } from "./EditionContext";
+
+/** Regional-indicator flag from an ISO country code, built at runtime. */
+export function flag(cc: string): string {
+  if (!cc || cc.length !== 2) return "";
+  return cc
+    .toUpperCase()
+    .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
 
 /**
- * The spectrum indicator always renders all three positions in the same
- * order. Covered sides are solid; uncovered sides are shown as a hairline
- * ring. We never hide a missing side: the balance itself is the message.
+ * The spectrum indicator always renders every bucket of the active edition
+ * in fixed order. Covered buckets are solid; uncovered ones are shown as a
+ * hairline ring. We never hide a missing side: the balance is the message.
  */
 export function Spectrum({
   coverage,
   size = 8,
   gap = 5,
 }: {
-  coverage: Bias[];
+  coverage: BucketId[];
   size?: number;
   gap?: number;
 }) {
+  const { buckets } = useEdition();
   return (
     <span className="inline-flex items-center" style={{ gap }} aria-hidden>
-      {BIAS_ORDER.map((bias) => {
-        const active = coverage.includes(bias);
+      {buckets.map((bucket) => {
+        const active = coverage.includes(bucket.id);
         return (
           <span
-            key={bias}
+            key={bucket.id}
             style={{
               width: size,
               height: size,
               borderRadius: 999,
-              backgroundColor: active ? BIAS_HEX[bias] : "transparent",
-              boxShadow: active ? "none" : `inset 0 0 0 1.5px ${BIAS_HEX[bias]}55`,
+              backgroundColor: active ? bucket.color : "transparent",
+              boxShadow: active ? "none" : `inset 0 0 0 1.5px ${bucket.color}55`,
             }}
           />
         );
@@ -37,20 +47,36 @@ export function Spectrum({
   );
 }
 
-export function BiasTag({ bias }: { bias: Bias }) {
+export function BucketTag({
+  bucket,
+  stateControlled = false,
+}: {
+  bucket: BucketId;
+  stateControlled?: boolean;
+}) {
+  const meta = useBucket(bucket);
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-      <span
-        style={{ backgroundColor: BIAS_HEX[bias] }}
-        className="h-1.5 w-1.5 rounded-full"
-      />
-      {BIAS_LABEL[bias]}
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+        <span style={{ backgroundColor: meta.color }} className="h-1.5 w-1.5 rounded-full" />
+        {meta.label}
+      </span>
+      {stateControlled && <StateBadge />}
+    </span>
+  );
+}
+
+/** Unmissable marker so state narratives are never presented as neutral. */
+export function StateBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-ink/25 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-ink/70">
+      State-controlled
     </span>
   );
 }
 
 /**
- * A deliberately neutral meter. The fill is ink, never a bias colour, so
+ * A deliberately neutral meter. The fill is ink, never a bucket colour, so
  * that "more charged language" is not visually equated with any one side.
  */
 export function RageMeter({ score, className = "" }: { score: number; className?: string }) {
@@ -72,32 +98,5 @@ export function Kicker({ children }: { children: React.ReactNode }) {
     <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-faint">
       {children}
     </span>
-  );
-}
-
-export function IconButton({
-  label,
-  onClick,
-  children,
-  active = false,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
-        active
-          ? "border-ink bg-ink text-canvas"
-          : "border-border bg-surface text-muted hover:border-ink hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

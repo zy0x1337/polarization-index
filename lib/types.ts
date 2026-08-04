@@ -1,4 +1,4 @@
-export type Bias = "left" | "center" | "right";
+import type { BucketId, BucketMeta } from "./editions";
 
 export interface NewsEvent {
   id: string;
@@ -7,7 +7,12 @@ export interface NewsEvent {
   description: string;
   link: string;
   source: string;
-  bias: Bias;
+  /** Which axis bucket this outlet sits in for the active edition. */
+  bucket: BucketId;
+  /** True for state-controlled outlets; surfaced at every headline. */
+  stateControlled: boolean;
+  /** ISO 3166-1 alpha-2 country code of the outlet. */
+  country: string;
   rageScore: number;
   rageWords: string[];
   keywords?: string[];
@@ -20,23 +25,9 @@ export interface Story {
   articles: NewsEvent[];
 }
 
-export const BIAS_ORDER: Bias[] = ["left", "center", "right"];
-
-export const BIAS_LABEL: Record<Bias, string> = {
-  left: "Left",
-  center: "Center",
-  right: "Right",
-};
-
-export const BIAS_HEX: Record<Bias, string> = {
-  left: "#1D4ED8",
-  center: "#3F6B54",
-  right: "#9F1239",
-};
-
 export interface StoryStats {
-  /** Distinct bias buckets that covered the story (0 to 3). */
-  coverage: Bias[];
+  /** Buckets that covered the story, in the edition's fixed order. */
+  coverage: BucketId[];
   /** Every distinct outlet that ran the story. */
   sourceCount: number;
   /** Article framed with the least sensational language. */
@@ -47,30 +38,33 @@ export interface StoryStats {
   rageSpread: number;
   /** Mean rage across all versions of the story. */
   avgRage: number;
-  /** Articles grouped by bias, in Left, Center, Right order. */
-  byBias: { bias: Bias; articles: NewsEvent[] }[];
+  /** Articles grouped by bucket, in the edition's fixed order. */
+  byBucket: { bucket: BucketId; articles: NewsEvent[] }[];
 }
 
 /**
- * Derives the neutral comparison metrics for a story from its raw articles.
- * Everything here is descriptive: we measure divergence, we never rank truth.
+ * Derives the neutral comparison metrics for a story, measured against the
+ * active edition's bucket order. Everything here is descriptive: we measure
+ * divergence, we never rank truth.
  */
-export function computeStoryStats(story: Story): StoryStats {
+export function computeStoryStats(story: Story, buckets: BucketMeta[]): StoryStats {
   const articles = story.articles;
   const sorted = [...articles].sort((a, b) => a.rageScore - b.rageScore);
   const calmest = sorted[0];
   const hottest = sorted[sorted.length - 1];
 
-  const coverage = BIAS_ORDER.filter((b) => articles.some((a) => a.bias === b));
+  const coverage = buckets
+    .map((b) => b.id)
+    .filter((id) => articles.some((a) => a.bucket === id));
+
   const sourceCount = new Set(articles.map((a) => a.source)).size;
   const avgRage = Math.round(
     articles.reduce((sum, a) => sum + a.rageScore, 0) / Math.max(articles.length, 1)
   );
 
-  const byBias = BIAS_ORDER.map((bias) => ({
-    bias,
-    articles: articles.filter((a) => a.bias === bias),
-  })).filter((group) => group.articles.length > 0);
+  const byBucket = buckets
+    .map((b) => ({ bucket: b.id, articles: articles.filter((a) => a.bucket === b.id) }))
+    .filter((group) => group.articles.length > 0);
 
   return {
     coverage,
@@ -79,7 +73,7 @@ export function computeStoryStats(story: Story): StoryStats {
     hottest,
     rageSpread: hottest.rageScore - calmest.rageScore,
     avgRage,
-    byBias,
+    byBucket,
   };
 }
 

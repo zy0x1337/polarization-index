@@ -3,14 +3,16 @@
 import { computeStoryStats, relativeTime, type NewsEvent, type Story } from "@/lib/types";
 import { useReader } from "./ReaderProvider";
 import { useStories } from "./StoriesContext";
-import { BiasTag, Kicker, RageMeter, Spectrum } from "./ui";
+import { useEdition } from "./EditionContext";
+import { BucketTag, Kicker, RageMeter, Spectrum, flag } from "./ui";
 
 const DOT = "·";
 const ARROW = "↗";
 
 export default function StoryPane({ story }: { story: Story }) {
   const { peek } = useReader();
-  const stats = computeStoryStats(story);
+  const { buckets, axisLabel } = useEdition();
+  const stats = computeStoryStats(story, buckets);
   const topic = story.keywords.slice(0, 4).join(` ${DOT} `);
 
   return (
@@ -27,7 +29,7 @@ export default function StoryPane({ story }: { story: Story }) {
         <div className="mt-5 flex items-center gap-3">
           <Spectrum coverage={stats.coverage} size={9} />
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
-            {stats.coverage.length} of 3 sides
+            {stats.coverage.length} of {buckets.length} {axisLabel} sides
           </span>
         </div>
       </header>
@@ -42,11 +44,11 @@ export default function StoryPane({ story }: { story: Story }) {
         </div>
       </section>
 
-      {/* All sides, in fixed Left -> Center -> Right order */}
+      {/* All sides, in the edition's fixed bucket order */}
       <section className="pt-6">
         <Kicker>Every side, side by side</Kicker>
         <div className="mt-4 space-y-3">
-          {stats.byBias.map((group) =>
+          {stats.byBucket.map((group) =>
             group.articles.map((article) => (
               <SourceCard
                 key={article.id}
@@ -65,44 +67,6 @@ export default function StoryPane({ story }: { story: Story }) {
         across the spectrum, and put every version in front of you.
       </p>
     </article>
-  );
-}
-
-/**
- * "More right now" is where the multi-pane model earns its keep: peek another
- * event over this one, then promote it, split them, or swap between the two.
- */
-function RelatedRail({ currentId }: { currentId: string }) {
-  const stories = useStories();
-  const { peek } = useReader();
-  const related = stories.filter((s) => s.id !== currentId).slice(0, 6);
-  if (related.length === 0) return null;
-
-  return (
-    <section className="mt-8 border-t border-hairline pt-6">
-      <Kicker>More right now {DOT} peek to compare</Kicker>
-      <div className="mt-4 space-y-2">
-        {related.map((s) => {
-          const stats = computeStoryStats(s);
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => peek({ kind: "story", story: s })}
-              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-left transition-colors hover:border-hairline hover:bg-surface"
-            >
-              <Spectrum coverage={stats.coverage} size={7} />
-              <span className="min-w-0 flex-1 truncate font-sans text-sm capitalize text-ink">
-                {s.keywords.slice(0, 3).join(", ")}
-              </span>
-              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
-                Peek
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -137,10 +101,10 @@ function FramingRow({ tag, article }: { tag: string; article: NewsEvent }) {
 function SourceCard({ article, onFocus }: { article: NewsEvent; onFocus: () => void }) {
   return (
     <div className="group rounded-2xl border border-hairline bg-surface p-4 transition-colors hover:border-border">
-      <div className="flex items-center justify-between">
-        <BiasTag bias={article.bias} />
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
-          {article.source}
+      <div className="flex items-center justify-between gap-2">
+        <BucketTag bucket={article.bucket} stateControlled={article.stateControlled} />
+        <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+          {flag(article.country)} {article.source}
         </span>
       </div>
       <h3 className="mt-2 font-serif text-lg leading-snug text-ink">{article.title}</h3>
@@ -170,5 +134,44 @@ function SourceCard({ article, onFocus }: { article: NewsEvent; onFocus: () => v
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * "More right now" is where the multi-pane model earns its keep: peek another
+ * event over this one, then promote it, split them, or swap between the two.
+ */
+function RelatedRail({ currentId }: { currentId: string }) {
+  const stories = useStories();
+  const { peek } = useReader();
+  const { buckets } = useEdition();
+  const related = stories.filter((s) => s.id !== currentId).slice(0, 6);
+  if (related.length === 0) return null;
+
+  return (
+    <section className="mt-8 border-t border-hairline pt-6">
+      <Kicker>More right now {DOT} peek to compare</Kicker>
+      <div className="mt-4 space-y-2">
+        {related.map((s) => {
+          const stats = computeStoryStats(s, buckets);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => peek({ kind: "story", story: s })}
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-left transition-colors hover:border-hairline hover:bg-surface"
+            >
+              <Spectrum coverage={stats.coverage} size={7} />
+              <span className="min-w-0 flex-1 truncate font-sans text-sm capitalize text-ink">
+                {s.keywords.slice(0, 3).join(", ")}
+              </span>
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
+                Peek
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
