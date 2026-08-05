@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Parser from "rss-parser";
 import { getEdition, editionMeta, type Edition } from "@/lib/editions";
+import { clusterArticles } from "@/lib/clustering";
 
 export const revalidate = 1800; // 30 minute cache
 
@@ -10,11 +11,6 @@ const rageDictionary = [
   "collapses", "erupts", "rage", "fury", "slam", "destroy", "chaos", "outrage",
   "blasts", "disaster", "scandal", "threat", "storm", "backlash",
 ];
-
-function getKeywords(title: string, stopWords: string[]) {
-  const words = title.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/);
-  return words.filter((w) => w.length > 3 && !stopWords.includes(w));
-}
 
 function calculateRageScore(title: string) {
   let score = 0;
@@ -61,7 +57,6 @@ async function fetchEdition(edition: Edition) {
           country: feed.country,
           rageScore: rageData.score,
           rageWords: rageData.words,
-          keywords: getKeywords(title, edition.stopWords),
         };
       });
     } catch {
@@ -70,49 +65,17 @@ async function fetchEdition(edition: Edition) {
   });
 
   const results = await Promise.all(feedPromises);
-  const flatItems = results
-    .flat()
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const flatItems = results.flat();
 
-  // Loose clustering: same event if a keyword overlaps within a 48h window.
-  const stories: any[] = [];
-  flatItems.forEach((item) => {
-    let matched = false;
-    for (const story of stories) {
-      const timeDiff = Math.abs(
-        new Date(story.date).getTime() - new Date(item.date).getTime()
-      );
-      if (timeDiff > 48 * 3600 * 1000) continue;
-
-      const overlap = item.keywords.filter((k: string) => story.keywords.includes(k));
-      if (overlap.length >= 1) {
-        if (!story.articles.some((a: any) => a.source === item.source)) {
-          story.articles.push(item);
-          story.keywords = Array.from(
-            new Set([...story.keywords, ...item.keywords])
-          ).slice(0, 6);
-          story.date = item.date;
-        }
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
-      stories.push({
-        id: Math.random().toString(36).substring(2, 9),
-        keywords: item.keywords,
-        date: item.date,
-        articles: [item],
-      });
-    }
-  });
+  // Relation-based clustering: the code decides which articles are about the
+  // same event (TF-IDF + cosine + entities), not a single shared word. Runs
+  // per-edition with that edition's language stop words.
+  const stories = clusterArticles(flatItems, { stopWords: edition.stopWords });
 
   // Only keep stories that actually span at least two perspective buckets.
   return stories
-    .filter((story) => {
-      const buckets = new Set(story.articles.map((a: any) => a.bucket));
-      return buckets.size >= 2;
-    })
+    .filter((story) => new Set(story.articles.map((a) => a.bucket)).size >= 2)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 40);
 }
 

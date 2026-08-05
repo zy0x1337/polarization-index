@@ -31,6 +31,7 @@ export type ReaderAction =
   | { type: "OPEN"; content: PaneContent }        // from the feed -> single
   | { type: "PEEK"; content: PaneContent }        // open something over the current pane
   | { type: "SET_SNAP"; snap: Snap }
+  | { type: "ARRANGE"; arrangement: "over" | "split" } // toggle 2-pane layout
   | { type: "PROMOTE" }                            // overlay becomes the background
   | { type: "SPLIT"; ratio?: number }             // move peek -> split
   | { type: "SET_RATIO"; ratio: number }
